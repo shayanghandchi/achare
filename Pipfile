@@ -9,6 +9,7 @@ python-dotenv = "*"
 djangorestframework = "*"
 pyjwt = "*"
 psycopg2 = "*"
+django-redis = "*"
 
 [dev-packages]
 
