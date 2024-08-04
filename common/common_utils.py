@@ -1,3 +1,8 @@
+import re
+
+mobile_format = re.compile(r"^(\+98|0)?9\d{9}$")
+
+
 def persian_digit_to_english(num: str):
     if num is None:
         return None
