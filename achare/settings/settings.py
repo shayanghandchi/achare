@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -82,3 +83,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
+
+# Authentication
+ACCESS_TOKEN_EXP = {"days": int(os.environ.get("ACCESS_TOKEN_EXP", "1"))}
+REFRESH_TOKEN_EXP = {"days": int(os.environ.get("REFRESH_TOKEN_EXP", "7"))}
+OTP_CODE_LENGTH = os.environ.get("OTP_CODE_LENGTH", 6)
+OTP_TIMEOUT_SECOND = os.environ.get("OTP_TIMEOUT_SECOND", 90)
