@@ -89,3 +89,4 @@ ACCESS_TOKEN_EXP = {"days": int(os.environ.get("ACCESS_TOKEN_EXP", "1"))}
 REFRESH_TOKEN_EXP = {"days": int(os.environ.get("REFRESH_TOKEN_EXP", "7"))}
 OTP_CODE_LENGTH = os.environ.get("OTP_CODE_LENGTH", 6)
 OTP_TIMEOUT_SECOND = os.environ.get("OTP_TIMEOUT_SECOND", 90)
+OTP_CHECK_MAX_ATTEMPT = os.environ.get("OTP_CHECK_MAX_ATTEMPT", 3)

@@ -1,9 +1,10 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from common.common_utils import arabic_to_persian, persian_digit_to_english
+from django.contrib.auth.models import AbstractBaseUser
 
 
-class User(models.Model):
+class User(AbstractBaseUser):
     phone_number = models.CharField(
         max_length=11,
         unique=True,
