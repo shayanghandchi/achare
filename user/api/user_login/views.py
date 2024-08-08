@@ -95,8 +95,29 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# class LoginView(APIView):
-# def post(self, request):
-#     phone_number = request.data.get("phone_number")
-#     phone_number = request.data.get("password")
-#     return Response(data={})
+class LoginView(APIView):
+    def post(self, request):
+        phone_number = request.data.get("phone_number")
+        password = request.data.get("password")
+
+        if not phone_number or not password:
+            return Response(
+                data={"error": "شماره تماس و رمز عبور اجباری هستند."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        try:
+            user = User.objects.get(phone_number=phone_number)
+            if user.check_password(password):
+                return Response(data=get_user_login_info(user.id))
+            return Response(
+                data={"error": "رمز عبور وارد شده معتبر نیست"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        except User.DoesNotExist:
+            # prevent users to find out user is exist or not by returning general error message
+            return Response(
+                {"error": "رمز عبور وارد شده معتبر نیست"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(data={})
