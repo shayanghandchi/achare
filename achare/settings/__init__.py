@@ -7,3 +7,4 @@ from .databases import *
 from .installed_apps import *
 from .middlewares import *
 from .settings import *
+from .rest_framework import *
