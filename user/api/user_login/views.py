@@ -2,12 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
+from rest_framework.throttling import UserRateThrottle
 
 from common.common_utils import (
     mobile_format,
     cache_get_otp,
     set_and_send_login_otp_link,
     check_otp,
+    is_blocked,
+    is_ip_blocked,
 )
 from common.common_user import get_user_id
 from user.authentication import get_user_login_info, JWTAuthentication
@@ -26,6 +29,8 @@ def validate_phone_number(phone_number):
 
 
 class RegisterView(APIView):
+    throttle_classes = [UserRateThrottle]
+
     def get_authenticators(self):
         if self.request.method == "PATCH":
             return [JWTAuthentication()]
@@ -39,9 +44,22 @@ class RegisterView(APIView):
 
         phone_number = validate_phone_number(phone_number)
         code = request.data.get("code")
+        ip_address = request.META.get("REMOTE_ADDR")
 
         if code:
-            if check_otp(phone_number, code):
+            if is_ip_blocked(ip_address):
+                return Response(
+                    data={
+                        "error": "آیپی شما به علت خطای زیاد، به مدت 1 ساعت مسدود شده اید"
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            if is_blocked(phone_number):
+                return Response(
+                    data={"error": "شما به علت خطای زیاد، به مدت 1 ساعت مسدود شده اید"},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            if check_otp(phone_number, code, ip_address):
 
                 user_id = get_user_id(phone_number)
                 return Response(
@@ -49,7 +67,9 @@ class RegisterView(APIView):
                 )
             else:
                 return Response(
-                    data={"error": "کد وارد شده درست نمی باشد یا منقضی شده است."},
+                    data={
+                        "error": "کد وارد شده درست نمی باشد یا منقضی شده است . لطفا مجددا درخواست ارسال کد نمایید."
+                    },
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
         else:
@@ -63,7 +83,7 @@ class RegisterView(APIView):
                         status=status.HTTP_403_FORBIDDEN,
                     )
 
-                otp_code = set_and_send_login_otp_link(phone_number)
+                otp_code = set_and_send_login_otp_link(phone_number, ip_address)
                 # TODO: send OTP code to user at this step and handle potential errors
                 return Response(
                     data={
@@ -99,7 +119,6 @@ class LoginView(APIView):
     def post(self, request):
         phone_number = request.data.get("phone_number")
         password = request.data.get("password")
-
         if not phone_number or not password:
             return Response(
                 data={"error": "شماره تماس و رمز عبور اجباری هستند."},
