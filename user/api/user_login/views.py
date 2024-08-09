@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.throttling import UserRateThrottle
+from django.db import IntegrityError, DatabaseError, OperationalError
 
 from common.common_utils import (
     mobile_format,
@@ -112,8 +113,29 @@ class RegisterView(APIView):
         user = request.user
         serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response(data=serializer.data, status=status.HTTP_200_OK)
+            try:
+                serializer.save()
+                return Response(data=serializer.data, status=status.HTTP_200_OK)
+            except IntegrityError as e:
+                return Response(
+                    {"error": "Integrity error: " + str(e)},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            except OperationalError as e:
+                return Response(
+                    {"error": "Operational error: " + str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            except DatabaseError as e:
+                return Response(
+                    {"error": "Database error: " + str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            except Exception as e:
+                return Response(
+                    {"error": "Unexpected error: " + str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
