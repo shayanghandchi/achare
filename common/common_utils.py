@@ -10,6 +10,8 @@ from achare.settings import (
     OTP_TIMEOUT_SECOND,
     OTP_CHECK_MAX_ATTEMPT,
     BLOCK_TIMEOUT_SECOND,
+    USER_TIMEOUT_SECOND,
+    IP_TIMEOUT_SECOND,
 )
 
 mobile_format = re.compile(r"^(\+98|0)?9\d{9}$")
@@ -65,6 +67,10 @@ def ip_cache_key(key):
     return f"ip_{key}"
 
 
+def user_cache_key(key):
+    return f"user_{key}"
+
+
 def cache_get_otp(user_phone_number):
     return cache.get(otp_cache_key(user_phone_number))
 
@@ -77,16 +83,24 @@ def cache_get_ip(ip):
     return cache.get(ip_cache_key(ip))
 
 
+def cache_get_user(user):
+    return cache.get(user_cache_key(user))
+
+
 def cache_set_otp(user_phone_number, otp_code):
     cache.set(otp_cache_key(user_phone_number), otp_code, OTP_TIMEOUT_SECOND)
 
 
 def cache_set_ip(ip, data):
-    cache.set(ip_cache_key(ip), data, OTP_TIMEOUT_SECOND)
+    cache.set(ip_cache_key(ip), data, IP_TIMEOUT_SECOND)
 
 
 def cache_set_block(key, value=True):
     cache.set(block_cache_key(key), value, BLOCK_TIMEOUT_SECOND)
+
+
+def cache_set_user(key, value=True):
+    cache.set(user_cache_key(key), value, USER_TIMEOUT_SECOND)
 
 
 def cache_delete_otp(user_phone_number):
@@ -95,6 +109,10 @@ def cache_delete_otp(user_phone_number):
 
 def cache_delete_ip(ip):
     cache.delete(ip_cache_key(ip))
+
+
+def cache_delete_user(user):
+    cache.delete(user_cache_key(user))
 
 
 def generate_otp_code() -> str:
@@ -152,3 +170,31 @@ def is_blocked(key) -> bool:
     if is_blocked is None:
         return False
     return is_blocked
+
+
+def set_ip_login_attempt(ip_address) -> None:
+    ip = cache_get_ip(ip_address)
+    if ip is None:
+        ip_attempt = 1
+        cache_set_ip(ip_address, {"attempt": ip_attempt})
+    else:
+        ip_attempt = ip.get("attempt") + 1
+        cache_set_ip(ip_address, {"attempt": ip_attempt})
+
+    if ip_attempt >= int(OTP_CHECK_MAX_ATTEMPT):
+        cache_delete_ip(ip_address)
+        cache_set_block(ip_address, True)
+
+
+def set_user_login_attempt(user) -> None:
+    user_cache = cache_get_user(user.id)
+    if user_cache is None:
+        attempt = 1
+        cache_set_user(user.id, {"attempt": attempt})
+    else:
+        attempt = user_cache.get("attempt") + 1
+        cache_set_user(user.id, {"attempt": attempt})
+
+    if attempt >= int(OTP_CHECK_MAX_ATTEMPT):
+        cache_delete_user(user.id)
+        cache_set_block(f"user_{user.id}", True)

@@ -11,6 +11,8 @@ from common.common_utils import (
     check_otp,
     is_blocked,
     is_ip_blocked,
+    set_ip_login_attempt,
+    set_user_login_attempt,
 )
 from common.common_user import get_user_id
 from user.authentication import get_user_login_info, JWTAuthentication
@@ -116,27 +118,47 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    throttle_classes = [UserRateThrottle]
+
     def post(self, request):
         phone_number = request.data.get("phone_number")
         password = request.data.get("password")
+        ip_address = request.META.get("REMOTE_ADDR")
         if not phone_number or not password:
             return Response(
                 data={"error": "شماره تماس و رمز عبور اجباری هستند."},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
+        if is_blocked(ip_address):
+            return Response(
+                data={"error": "آیپی شما به علت خطای زیاد، به مدت 1 ساعت مسدود شده"},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
 
         try:
             user = User.objects.get(phone_number=phone_number)
+            if is_blocked(f"user_{user.id}"):
+                return Response(
+                    data={
+                        "error": "نام کاربری شما به علت خطای زیاد، به مدت 1 ساعت مسدود شده"
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
             if user.check_password(password):
                 return Response(data=get_user_login_info(user.id))
+
+            set_ip_login_attempt(ip_address)
+            set_user_login_attempt(user)
+
             return Response(
                 data={"error": "رمز عبور وارد شده معتبر نیست"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         except User.DoesNotExist:
+            set_ip_login_attempt(ip_address)
             # prevent users to find out user is exist or not by returning general error message
             return Response(
                 {"error": "رمز عبور وارد شده معتبر نیست"},
-                status=status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         return Response(data={})
